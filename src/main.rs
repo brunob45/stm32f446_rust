@@ -1,20 +1,46 @@
-#![no_std]
+//! Using a device crate
+//!
+//! Crates generated using [`svd2rust`] are referred to as device crates. These crates provide an
+//! API to access the peripherals of a device.
+//!
+//! [`svd2rust`]: https://crates.io/crates/svd2rust
+//!
+//! ---
+
 #![no_main]
+#![no_std]
 
-// pick a panicking behavior
-use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch panics
-// use panic_abort as _; // requires nightly
-// use panic_itm as _; // logs messages over ITM; requires ITM support
-// use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
+#[allow(unused_extern_crates)]
+use panic_halt as _;
 
-use cortex_m::asm;
+use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::entry;
+use cortex_m_semihosting::hprint;
+use stm32f4::stm32f446::{interrupt, Interrupt, NVIC};
 
 #[entry]
 fn main() -> ! {
-    asm::nop(); // To not have main optimize to abort in release mode, remove when you add code
+    let p = cortex_m::Peripherals::take().unwrap();
+
+    let mut syst = p.SYST;
+
+    unsafe { NVIC::unmask(Interrupt::EXTI0); }
+
+    // configure the system timer to wrap around every second
+    syst.set_clock_source(SystClkSource::Core);
+    syst.set_reload(8_000_000); // 1s
+    syst.enable_counter();
 
     loop {
-        // your code goes here
+        // busy wait until the timer wraps around
+        while !syst.has_wrapped() {}
+
+        // trigger the `EXTI0` interrupt
+        NVIC::pend(Interrupt::EXTI0);
     }
+}
+
+#[interrupt]
+fn EXTI0() {
+    hprint!(".").unwrap();
 }
