@@ -1,46 +1,26 @@
-//! Using a device crate
-//!
-//! Crates generated using [`svd2rust`] are referred to as device crates. These crates provide an
-//! API to access the peripherals of a device.
-//!
-//! [`svd2rust`]: https://crates.io/crates/svd2rust
-//!
-//! ---
-
-#![no_main]
 #![no_std]
+#![no_main]
 
-#[allow(unused_extern_crates)]
-use panic_halt as _;
+use defmt::*;
+use embassy_executor::Spawner;
+use embassy_stm32::gpio::{Level, Output, Speed};
+use embassy_time::Timer;
+use {defmt_rtt as _, panic_probe as _};
 
-use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m_rt::entry;
-use cortex_m_semihosting::hprint;
-use stm32f4::stm32f446::{interrupt, Interrupt, NVIC};
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    let p = embassy_stm32::init(Default::default());
+    info!("Hello World!");
 
-#[entry]
-fn main() -> ! {
-    let p = cortex_m::Peripherals::take().unwrap();
-
-    let mut syst = p.SYST;
-
-    unsafe { NVIC::unmask(Interrupt::EXTI0); }
-
-    // configure the system timer to wrap around every second
-    syst.set_clock_source(SystClkSource::Core);
-    syst.set_reload(8_000_000); // 1s
-    syst.enable_counter();
+    let mut led = Output::new(p.PB2, Level::High, Speed::Low);
 
     loop {
-        // busy wait until the timer wraps around
-        while !syst.has_wrapped() {}
+        info!("high");
+        led.set_high();
+        Timer::after_millis(300).await;
 
-        // trigger the `EXTI0` interrupt
-        NVIC::pend(Interrupt::EXTI0);
+        info!("low");
+        led.set_low();
+        Timer::after_millis(300).await;
     }
-}
-
-#[interrupt]
-fn EXTI0() {
-    hprint!(".").unwrap();
 }
