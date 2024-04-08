@@ -22,7 +22,12 @@
             "configFiles": [
                 "interface/stlink.cfg",
                 "target/stm32f4x.cfg"
-            ]
+            ],
+            "postLaunchCommands": [
+                "monitor arm semihosting enable"
+            ],
+            "postRestartCommands": [],
+            "postResetCommands": [],
         }
     ]
 }

@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-// use cortex_m_semihosting::hprint;
+use cortex_m_semihosting::hprintln;
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
 use embassy_stm32::{time::Hertz, Config};
@@ -51,7 +51,8 @@ async fn main(spawner: Spawner) {
         config.rcc.sys = Sysclk::PLL1_P;
     }
     let p = embassy_stm32::init(config);
-    // hprint!("Hello World!").unwrap();
+
+    hprintln!("Hello World!").unwrap();
 
     // Spawned tasks run in the background, concurrently.
     spawner.spawn(blink(p.PB2.degrade())).unwrap();
