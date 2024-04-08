@@ -6,9 +6,9 @@ use cortex_m_semihosting::hprintln;
 
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
-use embassy_stm32::time::Hertz;
+// use embassy_stm32::time::Hertz;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, signal::Signal};
-use embassy_time::{Duration, Instant, Ticker};
+use embassy_time::{Duration, Ticker};
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -45,12 +45,6 @@ async fn main(spawner: Spawner) {
     spawner.spawn(blink(p.PB2.degrade(), &LED_SIGNAL)).unwrap();
 
     let mut ticker = Ticker::every(Duration::from_millis(500));
-
-    let begin = Instant::now().as_micros();
-    for _ in 0..1_000_000 {
-        asm::nop();
-    }
-    let _end = Instant::now().as_micros() - begin;
 
     loop {
         ticker.next().await;
