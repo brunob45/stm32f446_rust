@@ -6,7 +6,7 @@ use embassy_executor::Spawner;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
 use embassy_stm32::{time::Hertz, Config};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, signal::Signal};
-use embassy_time::Timer;
+use embassy_time::{Duration, Ticker};
 use {defmt_rtt as _, panic_probe as _};
 
 enum SomeCommand {
@@ -57,10 +57,12 @@ async fn main(spawner: Spawner) {
     // Spawned tasks run in the background, concurrently.
     spawner.spawn(blink(p.PB2.degrade())).unwrap();
 
+    let mut ticker = Ticker::every(Duration::from_millis(500));
+
     loop {
-        Timer::after_millis(300).await;
+        ticker.next().await;
         SOME_SIGNAL.signal(SomeCommand::On);
-        Timer::after_millis(300).await;
+        ticker.next().await;
         SOME_SIGNAL.signal(SomeCommand::Off);
     }
 }
