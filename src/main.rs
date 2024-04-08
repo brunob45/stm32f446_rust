@@ -52,7 +52,7 @@ async fn main(spawner: Spawner) {
     }
     let p = embassy_stm32::init(config);
 
-    hprintln!("Hello World!").unwrap();
+    hprintln!("Hello World!");
 
     // Spawned tasks run in the background, concurrently.
     spawner.spawn(blink(p.PB2.degrade())).unwrap();
