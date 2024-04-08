@@ -1,12 +1,15 @@
 #![no_std]
 #![no_main]
 
+use cortex_m::asm;
 use cortex_m_semihosting::hprintln;
+
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::{AnyPin, Level, Output, Pin, Speed};
 use embassy_stm32::{time::Hertz, Config};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, signal::Signal};
-use embassy_time::{Duration, Ticker};
+use embassy_time::{Duration, Instant, Ticker};
+
 use {defmt_rtt as _, panic_probe as _};
 
 enum SomeCommand {
@@ -14,14 +17,14 @@ enum SomeCommand {
     Off,
 }
 
-static SOME_SIGNAL: Signal<ThreadModeRawMutex, SomeCommand> = Signal::new();
+type LedSignal = Signal<ThreadModeRawMutex, SomeCommand>;
 
 #[embassy_executor::task]
-async fn blink(pin: AnyPin) {
+async fn blink(pin: AnyPin, signal: &'static LedSignal) {
     let mut led = Output::new(pin, Level::High, Speed::Low);
 
     loop {
-        match SOME_SIGNAL.wait().await {
+        match signal.wait().await {
             SomeCommand::Off => led.set_low(),
             SomeCommand::On => led.set_high(),
         };
@@ -33,10 +36,13 @@ async fn main(spawner: Spawner) {
     let mut config = Config::default();
     {
         use embassy_stm32::rcc::*;
+
+        config.rcc.hsi = true;
         config.rcc.hse = Some(Hse {
             freq: Hertz(8_000_000),
             mode: HseMode::Oscillator,
         });
+        config.rcc.sys = Sysclk::PLL1_P;
         config.rcc.pll_src = PllSource::HSE;
         config.rcc.pll = Some(Pll {
             prediv: PllPreDiv::DIV4,
@@ -48,21 +54,48 @@ async fn main(spawner: Spawner) {
         config.rcc.ahb_pre = AHBPrescaler::DIV1;
         config.rcc.apb1_pre = APBPrescaler::DIV4;
         config.rcc.apb2_pre = APBPrescaler::DIV2;
-        config.rcc.sys = Sysclk::PLL1_P;
     }
     let p = embassy_stm32::init(config);
 
     hprintln!("Hello World!");
 
+    static LED_SIGNAL: LedSignal = LedSignal::new();
+
     // Spawned tasks run in the background, concurrently.
-    spawner.spawn(blink(p.PB2.degrade())).unwrap();
+    spawner.spawn(blink(p.PB2.degrade(), &LED_SIGNAL)).unwrap();
 
     let mut ticker = Ticker::every(Duration::from_millis(500));
 
+    let begin = Instant::now().as_micros();
+    for _ in 0..1000000 {
+        asm::nop();
+    }
+    let end = Instant::now().as_micros();
+    hprintln!("{} - {} = {}", end, begin, end - begin);
+
+    let begin = Instant::now().as_micros();
+    for _ in 0..1000000 {
+        asm::nop();
+        asm::nop();
+    }
+    let end = Instant::now().as_micros();
+    hprintln!("{} - {} = {}", end, begin, end - begin);
+
+    let begin = Instant::now().as_micros();
+    for _ in 0..1000000 {
+        asm::nop();
+        asm::nop();
+        asm::nop();
+        asm::nop();
+    }
+    let end = Instant::now().as_micros();
+    hprintln!("{} - {} = {}", end, begin, end - begin);
+
     loop {
         ticker.next().await;
-        SOME_SIGNAL.signal(SomeCommand::On);
+        LED_SIGNAL.signal(SomeCommand::On);
+
         ticker.next().await;
-        SOME_SIGNAL.signal(SomeCommand::Off);
+        LED_SIGNAL.signal(SomeCommand::Off);
     }
 }
