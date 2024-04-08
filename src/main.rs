@@ -33,6 +33,8 @@ async fn blink(pin: AnyPin, signal: &'static LedSignal) {
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
+    asm::nop();
+
     let p = peripheral_config();
 
     hprintln!("Hello World!");
@@ -45,29 +47,10 @@ async fn main(spawner: Spawner) {
     let mut ticker = Ticker::every(Duration::from_millis(500));
 
     let begin = Instant::now().as_micros();
-    for _ in 0..1000000 {
+    for _ in 0..1_000_000 {
         asm::nop();
     }
-    let end = Instant::now().as_micros();
-    hprintln!("{} - {} = {}", end, begin, end - begin);
-
-    let begin = Instant::now().as_micros();
-    for _ in 0..1000000 {
-        asm::nop();
-        asm::nop();
-    }
-    let end = Instant::now().as_micros();
-    hprintln!("{} - {} = {}", end, begin, end - begin);
-
-    let begin = Instant::now().as_micros();
-    for _ in 0..1000000 {
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
-    }
-    let end = Instant::now().as_micros();
-    hprintln!("{} - {} = {}", end, begin, end - begin);
+    let _end = Instant::now().as_micros() - begin;
 
     loop {
         ticker.next().await;
@@ -83,23 +66,22 @@ fn peripheral_config() -> embassy_stm32::Peripherals {
 
     let mut config = embassy_stm32::Config::default();
 
-    config.rcc.hsi = true;
-    config.rcc.hse = Some(Hse {
-        freq: Hertz(8_000_000),
-        mode: HseMode::Oscillator,
-    });
-    config.rcc.sys = Sysclk::PLL1_P;
-    config.rcc.pll_src = PllSource::HSE;
+    // config.rcc.hse = Some(Hse {
+    //     freq: Hertz(8_000_000),
+    //     mode: HseMode::Oscillator,
+    // });
+    // config.rcc.pll_src = PllSource::HSE;
     config.rcc.pll = Some(Pll {
-        prediv: PllPreDiv::DIV4,
+        prediv: PllPreDiv::DIV8,
         mul: PllMul::MUL168,
         divp: Some(PllPDiv::DIV2), // 8mhz / 4 * 168 / 2 = 168Mhz.
         divq: Some(PllQDiv::DIV7), // 8mhz / 4 * 168 / 7 = 48Mhz.
-        divr: None,
+        divr: Some(PllRDiv::DIV2),
     });
     config.rcc.ahb_pre = AHBPrescaler::DIV1;
     config.rcc.apb1_pre = APBPrescaler::DIV4;
     config.rcc.apb2_pre = APBPrescaler::DIV2;
+    config.rcc.sys = Sysclk::PLL1_P;
 
     embassy_stm32::init(config)
 }
