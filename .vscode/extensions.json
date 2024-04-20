@@ -6,6 +6,9 @@
 	"recommendations": [
 		"rust-lang.rust-analyzer",
 		"marus25.cortex-debug",
+		"usernamehw.errorlens",
+		"tamasfe.even-better-toml",
+		"serayuzgur.crates"
 	],
 	// List of extensions recommended by VS Code that should not be recommended for users of this workspace.
 	"unwantedRecommendations": [
