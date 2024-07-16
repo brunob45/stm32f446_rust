@@ -20,7 +20,11 @@ async fn main(_spawner: Spawner) {
 
     let mut led = Output::new(p.PB2, Level::High, Speed::Low);
 
-    let begin = Instant::now().as_micros();
+    asm::nop();
+    let begin = Instant::now();
+    asm::nop();
+
+    let begin = begin.as_micros();
     for _ in 0..1000000 {
         asm::nop();
         asm::nop();
@@ -33,18 +37,28 @@ async fn main(_spawner: Spawner) {
     }
     let time1 = Instant::now().as_micros() - begin;
 
-    let begin = Instant::now().as_micros();
-    for _ in 0..1000000 {
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
-        asm::nop();
+    asm::nop();
+    asm::nop();
+    asm::nop();
+
+    let mut time2 = 0;
+    let begin = Instant::now();
+    let dur = Duration::from_millis(100);
+
+    asm::nop();
+    asm::nop();
+    asm::nop();
+    asm::nop();
+
+    while Instant::now() - begin < dur {
+        time2 += 1;
     }
-    let time2 = Instant::now().as_micros() - begin;
+
+    asm::nop();
+    asm::nop();
+    asm::nop();
+    asm::nop();
+    asm::nop();
 
     let begin = Instant::now().as_micros();
     for _ in 0..1000000 {
