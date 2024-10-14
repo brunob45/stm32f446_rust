@@ -45,12 +45,17 @@ async fn main(spawner: Spawner) {
     let mut led = Output::new(p.PB2, Level::High, Speed::Low);
 
     loop {
-        info!("high");
+        info!("heartbeat");
         led.set_high();
-        Timer::after_millis(300).await;
+        Timer::after_millis(100).await;
 
-        info!("low");
         led.set_low();
-        Timer::after_millis(300).await;
+        Timer::after_millis(100).await;
+
+        led.set_high();
+        Timer::after_millis(100).await;
+
+        led.set_low();
+        Timer::after_millis(700).await;
     }
 }
