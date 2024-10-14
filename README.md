@@ -15,6 +15,7 @@ From the [Rust Embedded book](https://docs.rust-embedded.org/book/intro/install.
   - [arm gnu toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
   - [openocd](https://github.com/xpack-dev-tools/openocd-xpack/releases)
   - [STLink driver](https://www.st.com/en/development-tools/stsw-link009.html)
+  - [probe-rs](https://probe.rs/)
 
 # Build
 - `cargo build`
