@@ -18,7 +18,8 @@ From the [Rust Embedded book](https://docs.rust-embedded.org/book/intro/install.
   - [probe-rs](https://probe.rs/)
 
 # Build
-- `cargo build`
+- fetch submodules: `git submodule update --init`
+- build: `cargo build`
 
 # Debug
 - `openocd`
