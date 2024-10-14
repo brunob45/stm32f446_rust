@@ -16,7 +16,8 @@ bind_interrupts!(struct Irqs {
 //
 // See https://embassy.dev/book/#_the_usb_examples_are_not_working_on_my_board_is_there_anything_else_i_need_to_configure
 // for more information.
-pub async fn usb_init(
+#[embassy_executor::task]
+pub async fn usb_task(
     peri: embassy_stm32::peripherals::USB_OTG_FS,
     dp: embassy_stm32::peripherals::PA12,
     dm: embassy_stm32::peripherals::PA11,

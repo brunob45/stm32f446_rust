@@ -14,7 +14,7 @@ use {defmt_rtt as _, panic_probe as _};
 mod usb;
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     info!("Hello World!");
 
     let mut config = Config::default();
@@ -40,7 +40,7 @@ async fn main(_spawner: Spawner) {
     }
     let p = embassy_stm32::init(config);
 
-    usb::usb_init(p.USB_OTG_FS, p.PA12, p.PA11).await;
+    let _ = spawner.spawn(usb::usb_task(p.USB_OTG_FS, p.PA12, p.PA11));
 
     let mut led = Output::new(p.PB2, Level::High, Speed::Low);
 
