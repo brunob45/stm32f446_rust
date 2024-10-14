@@ -1,6 +1,6 @@
 # STM32F446RET6 with embassy
 
-For now, blinks a LED
+For now, blink an LED and USB-CDC echo
 
 # Requirements
 From the [Rust Embedded book](https://docs.rust-embedded.org/book/intro/install.html).
