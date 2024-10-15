@@ -6,7 +6,7 @@ use {defmt_rtt as _, panic_probe as _};
 
 /// This is a safeguard to not overwrite any data on the SD card.
 /// If you don't care about SD card contents, set this to `true` to test writes.
-const ALLOW_WRITES: bool = false;
+const ALLOW_WRITES: bool = true;
 
 bind_interrupts!(struct Irqs {
     SDIO => sdmmc::InterruptHandler<peripherals::SDIO>;

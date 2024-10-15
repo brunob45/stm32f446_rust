@@ -38,5 +38,14 @@ chrono = { version = "^0.4", default-features = false}
 postcard = "1.0.*"
 serde = { version = "1.0.*", default-features = false }
 
+# https://github.com/rust-embedded-community/embedded-sdmmc-rs
+# embedded-sdmmc = "0.8.0"
+
+# https://github.com/rafalh/rust-fatfs
+# fatfs = { version = "0.3.6", default-features = false }
+
+# https://gitlab.com/susurrus/fat-rs
+
+
 [profile.release]
 debug = 2
