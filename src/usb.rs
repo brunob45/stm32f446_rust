@@ -1,7 +1,7 @@
 use defmt::{panic, *};
 use embassy_futures::join::join;
-use embassy_stm32::usb::{Driver, Instance};
-use embassy_stm32::{bind_interrupts, peripherals, usb};
+use embassy_stm32::usb::{self, Driver, Instance};
+use embassy_stm32::{bind_interrupts, peripherals};
 use embassy_usb::class::cdc_acm::{CdcAcmClass, State};
 use embassy_usb::driver::EndpointError;
 use embassy_usb::Builder;
@@ -17,14 +17,10 @@ bind_interrupts!(struct Irqs {
 // See https://embassy.dev/book/#_the_usb_examples_are_not_working_on_my_board_is_there_anything_else_i_need_to_configure
 // for more information.
 #[embassy_executor::task]
-pub async fn usb_task(
-    peri: embassy_stm32::peripherals::USB_OTG_FS,
-    dp: embassy_stm32::peripherals::PA12,
-    dm: embassy_stm32::peripherals::PA11,
-) {
+pub async fn usb_task(peri: peripherals::USB_OTG_FS, dp: peripherals::PA12, dm: peripherals::PA11) {
     // Create the driver, from the HAL.
     let mut ep_out_buffer = [0u8; 256];
-    let mut config = embassy_stm32::usb::Config::default();
+    let mut config = usb::Config::default();
 
     // Do not enable vbus_detection. This is a safe default that works in all boards.
     // However, if your USB device is self-powered (can stay powered on if USB is unplugged), you need
