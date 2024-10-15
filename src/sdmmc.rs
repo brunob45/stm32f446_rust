@@ -1,11 +1,7 @@
-#![no_std]
-#![no_main]
-
 use defmt::*;
-use embassy_executor::Spawner;
 use embassy_stm32::sdmmc::{DataBlock, Sdmmc};
-use embassy_stm32::time::{mhz, Hertz};
-use embassy_stm32::{bind_interrupts, peripherals, sdmmc, Config};
+use embassy_stm32::time::mhz;
+use embassy_stm32::{bind_interrupts, peripherals, sdmmc};
 use {defmt_rtt as _, panic_probe as _};
 
 /// This is a safeguard to not overwrite any data on the SD card.
@@ -16,43 +12,18 @@ bind_interrupts!(struct Irqs {
     SDIO => sdmmc::InterruptHandler<peripherals::SDIO>;
 });
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
-    let mut config = Config::default();
-    {
-        use embassy_stm32::rcc::*;
-        config.rcc.hse = Some(Hse {
-            freq: Hertz(8_000_000),
-            mode: HseMode::Bypass,
-        });
-        config.rcc.pll_src = PllSource::HSE;
-        config.rcc.pll = Some(Pll {
-            prediv: PllPreDiv::DIV4,
-            mul: PllMul::MUL168,
-            divp: Some(PllPDiv::DIV2), // 8mhz / 4 * 168 / 2 = 168Mhz.
-            divq: Some(PllQDiv::DIV7), // 8mhz / 4 * 168 / 7 = 48Mhz.
-            divr: None,
-        });
-        config.rcc.ahb_pre = AHBPrescaler::DIV1;
-        config.rcc.apb1_pre = APBPrescaler::DIV4;
-        config.rcc.apb2_pre = APBPrescaler::DIV2;
-        config.rcc.sys = Sysclk::PLL1_P;
-    }
-    let p = embassy_stm32::init(config);
-    info!("Hello World!");
-
-    let mut sdmmc = Sdmmc::new_4bit(
-        p.SDIO,
-        Irqs,
-        p.DMA2_CH3,
-        p.PC12,
-        p.PD2,
-        p.PC8,
-        p.PC9,
-        p.PC10,
-        p.PC11,
-        Default::default(),
-    );
+#[embassy_executor::task]
+pub async fn sdmmc_task(
+    peri: peripherals::SDIO,
+    dma: peripherals::DMA2_CH3,
+    clk: peripherals::PC12,
+    cmd: peripherals::PD2,
+    d0: peripherals::PC8,
+    d1: peripherals::PC9,
+    d2: peripherals::PC10,
+    d3: peripherals::PC11,
+) {
+    let mut sdmmc = Sdmmc::new_4bit(peri, Irqs, dma, clk, cmd, d0, d1, d2, d3, Default::default());
 
     // Should print 400kHz for initialization
     info!("Configured clock: {}", sdmmc.clock().0);

@@ -34,5 +34,9 @@ usbd-hid = "0.8.1"
 static_cell = "2"
 chrono = { version = "^0.4", default-features = false}
 
+# https://github.com/jamesmunns/postcard
+postcard = "1.0.*"
+serde = { version = "1.0.*", default-features = false }
+
 [profile.release]
 debug = 2

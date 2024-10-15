@@ -12,6 +12,7 @@ use embassy_time::Timer;
 use {defmt_rtt as _, panic_probe as _};
 
 mod usb;
+mod sdmmc;
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -41,6 +42,17 @@ async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config);
 
     let _ = spawner.spawn(usb::usb_task(p.USB_OTG_FS, p.PA12, p.PA11));
+
+    let _ = spawner.spawn(sdmmc::sdmmc_task(
+        p.SDIO,
+        p.DMA2_CH3,
+        p.PC12,
+        p.PD2,
+        p.PC8,
+        p.PC9,
+        p.PC10,
+        p.PC11
+    ));
 
     let mut led = Output::new(p.PB2, Level::High, Speed::Low);
 
