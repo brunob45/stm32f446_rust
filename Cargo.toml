@@ -72,13 +72,16 @@ postcard = "1.0.*"
 serde = { version = "1.0.*", default-features = false }
 
 # https://github.com/rust-embedded-community/embedded-sdmmc-rs
-embedded-sdmmc = { version = "0.8.0", path = "embedded-sdmmc", default-features = false, features = ["defmt-log"]}
+# embedded-sdmmc = { version = "0.8.0", path = "embedded-sdmmc", default-features = false, features = ["defmt-log"]}
 
 # https://github.com/rafalh/rust-fatfs
 # fatfs = { version = "0.3.6", default-features = false }
 
 # https://gitlab.com/susurrus/fat-rs
 
+# https://github.com/MabezDev/embedded-fatfs.git
+embedded-fatfs = { version = "0.1", path = "embedded-fatfs/embedded-fatfs", default-features = false}
+block-device-adapters = { version = "0.2", default-features = false}
 
 [profile.release]
 debug = 2

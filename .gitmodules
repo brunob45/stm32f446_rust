@@ -1,6 +1,6 @@
 [submodule "embassy"]
 	path = embassy
 	url = https://github.com/embassy-rs/embassy.git
-[submodule "embedded-sdmmc"]
-	path = embedded-sdmmc
-	url = https://github.com/brunob45/embedded-sdmmc-rs.git
+[submodule "embedded-fatfs"]
+	path = embedded-fatfs
+	url = https://github.com/MabezDev/embedded-fatfs
