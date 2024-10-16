@@ -72,7 +72,7 @@ postcard = "1.0.*"
 serde = { version = "1.0.*", default-features = false }
 
 # https://github.com/rust-embedded-community/embedded-sdmmc-rs
-# embedded-sdmmc = { "0.8.0", default-features = false }
+embedded-sdmmc = { version = "0.8.0", path = "embedded-sdmmc", default-features = false }
 
 # https://github.com/rafalh/rust-fatfs
 # fatfs = { version = "0.3.6", default-features = false }
