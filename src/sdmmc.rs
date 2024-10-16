@@ -32,7 +32,15 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for i in 0..blocks.len() {
-            embassy_futures::block_on(self.inner.read_block(start_block_idx.0 + (i as u32), &mut buffer)).map_err(|_| ())?;
+            let idx = start_block_idx.0 + (i as u32);
+            info!("read block {}", idx);
+            match embassy_futures::block_on(self.inner.read_block(idx, &mut buffer)) {
+                Ok(_) => (),
+                Err(e) => {
+                    info!("error {}", e);
+                    return Err(());
+                }
+            }
             blocks[i].contents.clone_from_slice(&buffer.0);
         }
         Ok(())
@@ -70,17 +78,26 @@ impl embedded_sdmmc::TimeSource for MyTs {
 fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc, MyTs>) -> Result<(), ()> {
     let mut v0 = match vm.open_volume(embedded_sdmmc::VolumeIdx(0)) {
         Ok(x) => x,
-        Err(_) => return Err(()),
+        Err(e) => {
+            info!("open_volume err: {}", e);
+            return Err(());
+        },
     };
     info!("Volume created");
     let mut root = match v0.open_root_dir() {
         Ok(x) => x,
-        Err(_) => return Err(()),
+        Err(e) => {
+            info!("open_root_dir err: {}", e);
+            return Err(());
+        },
     };
     info!("Root dir created");
     let _my_file = match root.open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate) {
         Ok(x) => x,
-        Err(_) => return Err(()),
+        Err(e) => {
+            info!("open_file_in_dir err: {}", e);
+            return Err(());
+        },
     };
     info!("File created");
     Ok(())
@@ -115,19 +132,19 @@ pub async fn sdmmc_task(
         }
     }
 
+    let card = unwrap!(sdmmc.card());
+
+    info!("Card: {:#?}", Debug2Format(card));
+    info!("Clock: {}", sdmmc.clock());
+
     let sdcard = MySdmmc::new(sdmmc);
     let time_source = MyTs {};
     let mut volume_mgr = embedded_sdmmc::VolumeManager::new(sdcard, time_source);
-    info!("Volume created");
+    info!("Volume mgr created");
     match create_file(&mut volume_mgr) {
         Ok(_) => info!("File success"),
         Err(_) => info!("File fail"),
     };
-
-    // let card = unwrap!(sdmmc.card());
-
-    // info!("Card: {:#?}", Debug2Format(card));
-    // info!("Clock: {}", sdmmc.clock());
 
     // // Arbitrary block index
     // let block_idx = 16;

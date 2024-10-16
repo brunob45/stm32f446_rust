@@ -593,6 +593,7 @@ name = "embedded-sdmmc"
 version = "0.8.0"
 dependencies = [
  "byteorder",
+ "defmt",
  "embedded-hal 1.0.0",
  "embedded-io",
  "heapless 0.8.0",
