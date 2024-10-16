@@ -22,7 +22,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
     type Error = ();
 
     fn num_blocks(&self) -> Result<embedded_sdmmc::BlockCount, Self::Error> {
-        Ok(embedded_sdmmc::BlockCount(0))
+        Ok(embedded_sdmmc::BlockCount(15_625_000)) // 8GB total, 512-bytes sectors
     }
 
     fn read(
