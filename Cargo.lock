@@ -595,7 +595,7 @@ dependencies = [
  "byteorder",
  "defmt",
  "embedded-hal 1.0.0",
- "embedded-io",
+ "embedded-io-async",
  "heapless 0.8.0",
 ]
 

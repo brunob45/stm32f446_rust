@@ -25,7 +25,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         Ok(embedded_sdmmc::BlockCount(15_625_000)) // 8GB total, 512-bytes sectors
     }
 
-    fn read(
+    async fn read(
         &mut self,
         blocks: &mut [embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
@@ -34,7 +34,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         for i in 0..blocks.len() {
             let idx = start_block_idx.0 + (i as u32);
             info!("read block {}", idx);
-            match embassy_futures::block_on(self.inner.read_block(idx, &mut buffer)) {
+            match self.inner.read_block(idx, &mut buffer).await {
                 Ok(_) => (),
                 Err(e) => {
                     info!("error {}", e);
@@ -46,7 +46,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         Ok(())
     }
 
-    fn write(
+    async fn write(
         &mut self,
         blocks: &[embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
@@ -54,7 +54,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for i in 0..blocks.len() {
             buffer.0.clone_from_slice(&blocks[i].contents);
-            embassy_futures::block_on(self.inner.write_block(start_block_idx.0 + (i as u32), &buffer)).map_err(|_| ())?
+            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await.map_err(|_| ())?
         }
         Ok(())
     }
@@ -75,8 +75,8 @@ impl embedded_sdmmc::TimeSource for MyTs {
     }
 }
 
-fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc, MyTs>) -> Result<(), ()> {
-    let mut v0 = match vm.open_volume(embedded_sdmmc::VolumeIdx(0)) {
+async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) -> Result<(), ()> {
+    let mut v0 = match vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await {
         Ok(x) => x,
         Err(e) => {
             info!("open_volume err: {}", e);
@@ -92,7 +92,7 @@ fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc, MyTs>) -> Result<
         },
     };
     info!("Root dir created");
-    let _my_file = match root.open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate) {
+    let _my_file = match root.open_file_in_dir("TEST2.TXT", embedded_sdmmc::Mode::ReadWriteCreate).await {
         Ok(x) => x,
         Err(e) => {
             info!("open_file_in_dir err: {}", e);
@@ -141,7 +141,7 @@ pub async fn sdmmc_task(
     let time_source = MyTs {};
     let mut volume_mgr = embedded_sdmmc::VolumeManager::new(sdcard, time_source);
     info!("Volume mgr created");
-    match create_file(&mut volume_mgr) {
+    match create_file(&mut volume_mgr).await {
         Ok(_) => info!("File success"),
         Err(_) => info!("File fail"),
     };
