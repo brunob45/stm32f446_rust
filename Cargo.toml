@@ -80,8 +80,8 @@ serde = { version = "1.0.*", default-features = false }
 # https://gitlab.com/susurrus/fat-rs
 
 # https://github.com/MabezDev/embedded-fatfs.git
-embedded-fatfs = { version = "0.1", path = "embedded-fatfs/embedded-fatfs", default-features = false}
-block-device-adapters = { version = "0.2", default-features = false}
+embedded-fatfs = { version = "0.1", path = "embedded-fatfs/embedded-fatfs", default-features = false, features = ["defmt"]}
+block-device-adapters = { version = "0.2", default-features = false, features = ["defmt"]}
 
 [profile.release]
 debug = 2
