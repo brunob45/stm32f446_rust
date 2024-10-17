@@ -20,10 +20,10 @@ impl<'d> MySdmmc<'d> {
 }
 
 impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
-    type Error = ();
+    type Error = embassy_stm32::sdmmc::Error;
 
     fn num_blocks(&self) -> Result<embedded_sdmmc::BlockCount, Self::Error> {
-        Ok(embedded_sdmmc::BlockCount(15_625_000)) // 8GB total, 512-bytes sectors
+        Ok(embedded_sdmmc::BlockCount(self.inner.card()?.csd.block_count()))
     }
 
     async fn read(
@@ -32,17 +32,11 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
-        for i in 0..blocks.len() {
-            let idx = start_block_idx.0 + (i as u32);
-            info!("read block {}", idx);
-            match self.inner.read_block(idx, &mut buffer).await {
-                Ok(_) => (),
-                Err(e) => {
-                    info!("error {}", e);
-                    return Err(());
-                }
-            }
-            blocks[i].contents.clone_from_slice(&buffer.0);
+        for (i, block) in blocks.iter_mut().enumerate() {
+            self.inner
+                .read_block(start_block_idx.0 + (i as u32), &mut buffer)
+                .await?;
+            block.contents.clone_from_slice(&buffer.0);
         }
         Ok(())
     }
@@ -53,9 +47,9 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
-        for i in 0..blocks.len() {
-            buffer.0.clone_from_slice(&blocks[i].contents);
-            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await.map_err(|_| ())?
+        for (i, block) in blocks.iter().enumerate() {
+            buffer.0.clone_from_slice(&block.contents);
+            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await?
         }
         Ok(())
     }
@@ -76,59 +70,32 @@ impl embedded_sdmmc::TimeSource for MyTs {
     }
 }
 
-async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) -> Result<(), ()> {
-    let mut v0 = match vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await {
-        Ok(x) => x,
-        Err(e) => {
-            info!("open_volume err: {}", e);
-            return Err(());
-        },
-    };
+type Error = embedded_sdmmc::Error<embassy_stm32::sdmmc::Error>;
+
+async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) -> Result<(), Error> {
+    let mut v0 = vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await?;
     info!("Volume created");
-    let mut root = match v0.open_root_dir() {
-        Ok(x) => x,
-        Err(e) => {
-            info!("open_root_dir err: {}", e);
-            return Err(());
-        },
-    };
+
+    let mut root = v0.open_root_dir()?;
     info!("Root dir created");
-    let mut my_file = match root.open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate).await {
-        Ok(x) => x,
-        Err(e) => {
-            info!("open_file_in_dir err: {}", e);
-            return Err(());
-        },
-    };
+
+    let mut my_file = root
+        .open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate)
+        .await?;
     info!("File created");
 
     let _ = my_file.seek_from_start(0);
 
     let hello = b"Hello world!";
-    match my_file.write_all(hello).await {
-        Ok(_) => (),
-        Err(e) => {
-            info!("write_all err: {}", e);
-            return Err(());
-        },
-    };
-    match my_file.flush().await {
-        Ok(_) => (),
-        Err(e) => {
-            info!("flush err: {}", e);
-            return Err(());
-        },
-    };
+    my_file.write_all(hello).await?;
+    my_file.flush().await?;
 
     let mut buf = [0u8; 12];
     let _ = my_file.seek_from_start(0);
-    match my_file.read_exact(&mut buf[..]).await {
-        Ok(_) => (),
-        Err(e) => {
-            info!("read_exact err: {}", e);
-            return Err(());
-        },
-    };
+    my_file.read_exact(&mut buf[..]).await.map_err(|e| match e {
+        embedded_io_async::ReadExactError::UnexpectedEof => Error::EndOfFile,
+        embedded_io::ReadExactError::Other(err) => err,
+    })?;
     info!("Read from file: {}", core::str::from_utf8(&buf[..]).unwrap());
 
     Ok(())
