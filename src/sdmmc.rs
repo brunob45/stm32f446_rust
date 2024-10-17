@@ -2,6 +2,7 @@ use defmt::*;
 use embassy_stm32::sdmmc::Sdmmc;
 use embassy_stm32::time::mhz;
 use embassy_stm32::{bind_interrupts, peripherals, sdmmc};
+use embedded_io_async::{Read, Write};
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -92,7 +93,7 @@ async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) 
         },
     };
     info!("Root dir created");
-    let _my_file = match root.open_file_in_dir("TEST2.TXT", embedded_sdmmc::Mode::ReadWriteCreate).await {
+    let mut my_file = match root.open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate).await {
         Ok(x) => x,
         Err(e) => {
             info!("open_file_in_dir err: {}", e);
@@ -100,6 +101,36 @@ async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) 
         },
     };
     info!("File created");
+
+    let _ = my_file.seek_from_start(0);
+
+    let hello = b"Hello world!";
+    match my_file.write_all(hello).await {
+        Ok(_) => (),
+        Err(e) => {
+            info!("write_all err: {}", e);
+            return Err(());
+        },
+    };
+    match my_file.flush().await {
+        Ok(_) => (),
+        Err(e) => {
+            info!("flush err: {}", e);
+            return Err(());
+        },
+    };
+
+    let mut buf = [0u8; 12];
+    let _ = my_file.seek_from_start(0);
+    match my_file.read_exact(&mut buf[..]).await {
+        Ok(_) => (),
+        Err(e) => {
+            info!("read_exact err: {}", e);
+            return Err(());
+        },
+    };
+    info!("Read from file: {}", core::str::from_utf8(&buf[..]).unwrap());
+
     Ok(())
 }
 
