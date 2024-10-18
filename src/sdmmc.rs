@@ -2,7 +2,17 @@ use defmt::*;
 use embassy_stm32::sdmmc::Sdmmc;
 use embassy_stm32::time::mhz;
 use embassy_stm32::{bind_interrupts, peripherals, sdmmc};
+
+#[cfg(feature="is_sync")]
+use embedded_io::{Read, Write};
+
+#[cfg(feature="is_sync")]
+use embassy_futures::block_on;
+
+#[cfg(not(feature="is_sync"))]
 use embedded_io_async::{Read, Write};
+
+
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -26,6 +36,21 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         Ok(embedded_sdmmc::BlockCount(self.inner.card()?.csd.block_count()))
     }
 
+    #[maybe_async::sync_impl]
+    fn read(
+        &mut self,
+        blocks: &mut [embedded_sdmmc::Block],
+        start_block_idx: embedded_sdmmc::BlockIdx,
+    ) -> Result<(), Self::Error> {
+        let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
+        for (i, block) in blocks.iter_mut().enumerate() {
+            block_on(self.inner.read_block(start_block_idx.0 + (i as u32), &mut buffer))?;
+            block.contents.clone_from_slice(&buffer.0);
+        }
+        Ok(())
+    }
+
+    #[maybe_async::async_impl]
     async fn read(
         &mut self,
         blocks: &mut [embedded_sdmmc::Block],
@@ -33,14 +58,27 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter_mut().enumerate() {
-            self.inner
-                .read_block(start_block_idx.0 + (i as u32), &mut buffer)
-                .await?;
+            self.inner.read_block(start_block_idx.0 + (i as u32), &mut buffer).await?;
             block.contents.clone_from_slice(&buffer.0);
         }
         Ok(())
     }
 
+    #[maybe_async::sync_impl]
+    fn write(
+        &mut self,
+        blocks: &[embedded_sdmmc::Block],
+        start_block_idx: embedded_sdmmc::BlockIdx,
+    ) -> Result<(), Self::Error> {
+        let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
+        for (i, block) in blocks.iter().enumerate() {
+            buffer.0.clone_from_slice(&block.contents);
+            block_on(self.inner.write_block(start_block_idx.0 + (i as u32), &buffer))?;
+        }
+        Ok(())
+    }
+
+    #[maybe_async::async_impl]
     async fn write(
         &mut self,
         blocks: &[embedded_sdmmc::Block],
@@ -49,7 +87,7 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter().enumerate() {
             buffer.0.clone_from_slice(&block.contents);
-            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await?
+            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await?;
         }
         Ok(())
     }
@@ -72,6 +110,7 @@ impl embedded_sdmmc::TimeSource for MyTs {
 
 type Error = embedded_sdmmc::Error<embassy_stm32::sdmmc::Error>;
 
+#[maybe_async::maybe_async]
 async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) -> Result<(), Error> {
     let mut v0 = vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await?;
     info!("Volume created");
@@ -79,7 +118,7 @@ async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) 
     let mut root = v0.open_root_dir()?;
     info!("Root dir created");
 
-    let mut my_file = root
+    let mut my_file: embedded_sdmmc::File<'_, MySdmmc<'_>, MyTs, 4, 4, 1> = root
         .open_file_in_dir("TEST.TXT", embedded_sdmmc::Mode::ReadWriteCreate)
         .await?;
     info!("File created");
@@ -139,7 +178,14 @@ pub async fn sdmmc_task(
     let time_source = MyTs {};
     let mut volume_mgr = embedded_sdmmc::VolumeManager::new(sdcard, time_source);
     info!("Volume mgr created");
-    match create_file(&mut volume_mgr).await {
+
+    #[cfg(feature="is_sync")]
+    let res = create_file(&mut volume_mgr);
+
+    #[cfg(not(feature="is_sync"))]
+    let res = create_file(&mut volume_mgr).await;
+
+    match res {
         Ok(_) => info!("File success"),
         Err(_) => info!("File fail"),
     };

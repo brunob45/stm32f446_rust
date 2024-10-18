@@ -415,6 +415,7 @@ dependencies = [
  "embedded-storage",
  "futures-util",
  "heapless 0.8.0",
+ "maybe-async",
  "micromath",
  "nb 1.1.0",
  "panic-probe",
@@ -595,8 +596,10 @@ dependencies = [
  "byteorder",
  "defmt",
  "embedded-hal 1.0.0",
+ "embedded-io",
  "embedded-io-async",
  "heapless 0.8.0",
+ "maybe-async",
 ]
 
 [[package]]
@@ -735,6 +738,17 @@ name = "managed"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
+
+[[package]]
+name = "maybe-async"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cf92c10c7e361d6b99666ec1c6f9805b0bea2c3bd8c78dc6fe98ac5bd78db11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.79",
+]
 
 [[package]]
 name = "micromath"
