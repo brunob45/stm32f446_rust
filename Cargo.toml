@@ -82,7 +82,7 @@ embedded-sdmmc = { version = "0.8.0", path = "embedded-sdmmc", default-features 
 maybe-async = {version="0.2"}
 
 [features]
-default = ["is_sync"]
+# default = ["is_sync"]
 is_sync = ["maybe-async/is_sync", "embedded-sdmmc/is_sync"]
 
 [profile.release]
