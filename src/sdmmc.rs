@@ -1,3 +1,5 @@
+use core::cell::RefCell;
+
 use defmt::*;
 use embassy_stm32::sdmmc::Sdmmc;
 use embassy_stm32::time::mhz;
@@ -20,12 +22,12 @@ bind_interrupts!(struct Irqs {
 });
 
 struct MySdmmc<'d> {
-    inner: Sdmmc<'d, peripherals::SDIO, peripherals::DMA2_CH3>,
+    inner: RefCell<Sdmmc<'d, peripherals::SDIO, peripherals::DMA2_CH3>>,
 }
 
 impl<'d> MySdmmc<'d> {
     pub fn new(sdmmc: Sdmmc<'d, peripherals::SDIO, peripherals::DMA2_CH3>) -> Self {
-        Self { inner: sdmmc }
+        Self { inner: RefCell::new(sdmmc) }
     }
 }
 
@@ -33,18 +35,19 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
     type Error = embassy_stm32::sdmmc::Error;
 
     fn num_blocks(&self) -> Result<embedded_sdmmc::BlockCount, Self::Error> {
-        Ok(embedded_sdmmc::BlockCount(self.inner.card()?.csd.block_count()))
+        Ok(embedded_sdmmc::BlockCount(self.inner.borrow_mut().card()?.csd.block_count()))
     }
 
     #[maybe_async::sync_impl]
     fn read(
-        &mut self,
+        &self,
         blocks: &mut [embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter_mut().enumerate() {
-            block_on(self.inner.read_block(start_block_idx.0 + (i as u32), &mut buffer))?;
+            let block_idx: u32 = start_block_idx.0 + (i as u32);
+            block_on(self.inner.borrow_mut().read_block(block_idx, &mut buffer))?;
             block.contents.clone_from_slice(&buffer.0);
         }
         Ok(())
@@ -52,13 +55,14 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
 
     #[maybe_async::async_impl]
     async fn read(
-        &mut self,
+        &self,
         blocks: &mut [embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter_mut().enumerate() {
-            self.inner.read_block(start_block_idx.0 + (i as u32), &mut buffer).await?;
+            let block_idx: u32 = start_block_idx.0 + (i as u32);
+            self.inner.borrow_mut().read_block(block_idx, &mut buffer).await?;
             block.contents.clone_from_slice(&buffer.0);
         }
         Ok(())
@@ -66,28 +70,30 @@ impl<'d> embedded_sdmmc::BlockDevice for MySdmmc<'d> {
 
     #[maybe_async::sync_impl]
     fn write(
-        &mut self,
+        &self,
         blocks: &[embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter().enumerate() {
+            let block_idx: u32 = start_block_idx.0 + (i as u32);
             buffer.0.clone_from_slice(&block.contents);
-            block_on(self.inner.write_block(start_block_idx.0 + (i as u32), &buffer))?;
+            block_on(self.inner.borrow_mut().write_block(block_idx, &buffer))?;
         }
         Ok(())
     }
 
     #[maybe_async::async_impl]
     async fn write(
-        &mut self,
+        &self,
         blocks: &[embedded_sdmmc::Block],
         start_block_idx: embedded_sdmmc::BlockIdx,
     ) -> Result<(), Self::Error> {
         let mut buffer = embassy_stm32::sdmmc::DataBlock { 0: [0; 512] };
         for (i, block) in blocks.iter().enumerate() {
+            let block_idx: u32 = start_block_idx.0 + (i as u32);
             buffer.0.clone_from_slice(&block.contents);
-            self.inner.write_block(start_block_idx.0 + (i as u32), &buffer).await?;
+            self.inner.borrow_mut().write_block(block_idx, &buffer).await?;
         }
         Ok(())
     }
@@ -112,10 +118,10 @@ type Error = embedded_sdmmc::Error<embassy_stm32::sdmmc::Error>;
 
 #[maybe_async::maybe_async]
 async fn create_file(vm: &mut embedded_sdmmc::VolumeManager<MySdmmc<'_>, MyTs>) -> Result<(), Error> {
-    let mut v0 = vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await?;
+    let v0 = vm.open_volume(embedded_sdmmc::VolumeIdx(0)).await?;
     info!("Volume created");
 
-    let mut root = v0.open_root_dir()?;
+    let root = v0.open_root_dir()?;
     info!("Root dir created");
 
     let mut my_file: embedded_sdmmc::File<'_, MySdmmc<'_>, MyTs, 4, 4, 1> = root
